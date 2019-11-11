@@ -13,10 +13,10 @@ import "C"
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"reflect"
 	"unsafe"
-	"encoding/binary"
 
 	"github.com/g3n/engine/math32"
 )
@@ -345,35 +345,62 @@ func (gs *GLS) DeleteVertexArrays(vaos ...uint32) {
 	gs.stats.Vaos -= len(vaos)
 }
 
-// WithFramebuffer executes f inside a framebuffer context.
-func (gs *GLS) WithFramebuffer(f func()) {
-	fbo := C.GLuint(0)
-	rboColor := C.GLuint(0)
-	rboDepth := C.GLuint(0)
+// GenerateFramebuffer creates a new framebuffer.
+// Framebuffers store (usually two) render buffers.
+func (gs *GLS) GenerateFramebuffer() uint32 {
+	var fb uint32
+	C.glGenFramebuffers(1, (*C.GLuint)(&fb))
+	return fb
+}
 
-	C.glGenFramebuffers(1, &fbo)
-	C.glGenRenderbuffers(1, &rboColor)
-	C.glGenRenderbuffers(1, &rboDepth)
+// GenerateRenderbuffer creates a new render buffer.
+func (gs *GLS) GenerateRenderbuffer() uint32 {
+	var rb uint32
+	C.glGenRenderbuffers(1, (*C.GLuint)(&rb))
+	return rb
+}
 
-	C.glBindFramebuffer(FRAMEBUFFER, fbo)
+// BindFramebuffer sets the current framebuffer.
+func (gs *GLS) BindFramebuffer(fb uint32) {
+	C.glBindFramebuffer(FRAMEBUFFER, C.GLuint(fb))
+}
 
-	// Color renderbuffer
-	C.glBindRenderbuffer(RENDERBUFFER, rboColor)
-	C.glRenderbufferStorage(RENDERBUFFER, RGBA32F, C.GLint(gs.viewportWidth), C.GLint(gs.viewportHeight))
-	C.glFramebufferRenderbuffer(DRAW_FRAMEBUFFER, COLOR_ATTACHMENT0, RENDERBUFFER, rboColor)
+// BindRenderbuffer sets the current render buffer.
+func (gs *GLS) BindRenderbuffer(rb uint32) {
+	C.glBindRenderbuffer(RENDERBUFFER, C.GLuint(rb))
+}
 
-	// Depth renderbuffer
-	C.glBindRenderbuffer(RENDERBUFFER, rboDepth)
-	C.glRenderbufferStorage(RENDERBUFFER, DEPTH_COMPONENT16, C.GLint(gs.viewportWidth), C.GLint(gs.viewportHeight))
-	C.glFramebufferRenderbuffer(DRAW_FRAMEBUFFER, DEPTH_ATTACHMENT, RENDERBUFFER, rboDepth)
+// RenderbufferStorage allocates space for the bound render buffer.
+// Format is the internal storage format, e.g. RGBA32F
+func (gs *GLS) RenderbufferStorage(format uint, width int, height int) {
+	C.glRenderbufferStorage(RENDERBUFFER, C.GLuint(format), C.GLint(width), C.GLint(height))
+}
 
-	C.glReadBuffer(COLOR_ATTACHMENT0)
+// FramebufferRenderbuffer attaches a renderbuffer object to the bound framebuffer object.
+// Attachment is one of COLOR_ATTACHMENT0, DEPTH_ATTACHMENT, or STENCIL_ATTACHMENT.
+func (gs *GLS) FramebufferRenderbuffer(attachment uint, rb uint32) {
+	C.glFramebufferRenderbuffer(DRAW_FRAMEBUFFER, C.GLuint(attachment), RENDERBUFFER, C.GLuint(rb))
+}
 
-	f()
+// FramebufferTexture attaches a level of a texture object as a logical buffer of a framebuffer object.
+func (gs *GLS) FramebufferTexture(attachment uint, tex uint32) {
+	C.glFramebufferTexture(FRAMEBUFFER, C.GLuint(attachment), C.GLuint(tex), 0)
+}
 
-	C.glDeleteFramebuffers(1, &fbo)
-	C.glDeleteRenderbuffers(1, &rboColor)
-	C.glDeleteRenderbuffers(1, &rboDepth)
+// ReadBuffer sets the buffer for reading using ReadPixels.
+// Attachment is one of COLOR_ATTACHMENT0, DEPTH_ATTACHMENT, or STENCIL_ATTACHMENT.
+func (gs *GLS) ReadBuffer(attachment uint) {
+	C.glReadBuffer(C.GLuint(attachment))
+}
+
+// DeleteFramebuffers deletes the given frame buffers.
+func (gs *GLS) DeleteFramebuffers(bufs ...uint32) {
+	C.glDeleteFramebuffers(C.GLsizei(len(bufs)), (*C.GLuint)(&bufs[0]))
+}
+
+// DeleteRenderbuffers deletes the given render buffers.
+func (gs *GLS) DeleteRenderbuffers(bufs ...uint32) {
+	C.glDeleteRenderbuffers(C.GLsizei(len(bufs)), (*C.GLuint)(&bufs[0]))
 }
 
 // ReadPixels reads from the current rendered image or framebuffer.

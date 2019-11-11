@@ -7,13 +7,14 @@ package texture
 
 import (
 	"fmt"
-	"github.com/g3n/engine/util/logger"
 	"image"
 	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
+
+	"github.com/g3n/engine/util/logger"
 
 	"github.com/g3n/engine/gls"
 )
@@ -306,6 +307,11 @@ func DecodeImage(imgfile string) (*image.RGBA, error) {
 	}
 	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
 	return rgba, nil
+}
+
+// TexName returns the id of this texture object.
+func (t *Texture2D) TexName() uint32 {
+	return t.texname
 }
 
 // RenderSetup is called by the material render setup
